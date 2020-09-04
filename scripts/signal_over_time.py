@@ -6,7 +6,7 @@ from mp2ragelib.core import Mz_inv, Mz_0rf, Mz_nrf
 
 # Parameters
 eff = 1
-TR_MP2RAGE = 5
+TR_MP2RAGE = 15.0
 TI_1 = 0.8
 TI_2 = 2.7
 FA_1 = np.deg2rad(4.)
@@ -29,34 +29,35 @@ T_GRE2_end = TI_2 + (NR_RF * TR_GRE / 2)
 
 # Step 0: Inversion
 M0 = 1
-signal[0] = Mz_inv(eff=1, mz0=M0)
+S0 = Mz_inv(eff=1, mz0=M0)
 Mz0 = 0
 for t1 in T1s:
-    for i in range(1, nr_timepoints):
-        t = time[i]
-
+    for i, t in enumerate(time):
         # Step 1: Period with no pulses
         if t < T_GRE1_start:
-            signal[i] = Mz_0rf(mz0=signal[i-1], t1=t1, t=t, m0=M0)
+            signal[i] = Mz_0rf(mz0=S0, t1=t1, t=t, m0=M0)
+            Mz0 = signal[i]
 
         # Step 2: First GRE block
         elif t < T_GRE1_end:
-            signal[i] = Mz_nrf(mz0=signal[i-1], t1=t1, n_gre=NR_RF,
-                               tr_gre=TR_GRE, alpha=FA_1, m0=M0)
+            signal[i] = Mz_nrf(mz0=Mz0, t1=t1, n_gre=NR_RF, tr_gre=TR_GRE,
+                               alpha=FA_1, m0=M0)
 
         # Step 3: Prediod with no pulses
         elif t < T_GRE2_start:
-            signal[i] = Mz_0rf(mz0=signal[i-1], t1=t1, t=t, m0=M0)
+            signal[i] = Mz_0rf(mz0=S0, t1=t1, t=t, m0=M0)
+            Mz0 = signal[i]
 
         # Step 4: Second GRE block
         elif t < T_GRE2_end:
-            signal[i] = Mz_nrf(mz0=signal[i-1], t1=t1, n_gre=NR_RF,
-                               tr_gre=TR_GRE, alpha=FA_2, m0=M0)
+            signal[i] = Mz_nrf(mz0=Mz0, t1=t1, n_gre=NR_RF, tr_gre=TR_GRE,
+                               alpha=FA_2, m0=M0)
 
         # Step 5: Final recovery with no pulses
         else:
-            signal[i] = Mz_0rf(mz0=signal[i-1], t1=t1, t=t, m0=M0)
+            signal[i] = Mz_0rf(mz0=S0, t1=t1, t=t, m0=M0)
 
     fig = plt.plot(time, signal)
     plt.xlabel("Time (seconds)")
     plt.ylabel("Lngitudinal magnetization.")
+    plt.ylim((-1, 1))

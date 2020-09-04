@@ -9,7 +9,6 @@ from mp2ragelib.core import Mz_ss_solved, signal_gre1, signal_gre2
 NR_SAMPLES = 1000
 arr_T1 = np.linspace(0.05, 5, NR_SAMPLES)
 
-# From Marques et al. (2010), Table 1, 7T subjects 1-7
 eff = 0.96
 TR_MP2RAGE = 5.0
 TI_1 = 0.8
@@ -17,7 +16,6 @@ TI_2 = 2.7
 FA_1 = np.deg2rad(4.)
 FA_2 = np.deg2rad(5.)
 NR_RF = 120.
-# TR_GRE = 0.00291
 TR_GRE = 0.00291
 
 arr_UNI = np.zeros(NR_SAMPLES)
