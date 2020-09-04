@@ -1,7 +1,7 @@
 """Compute UNI image from the first and second inversions of MP2RAGE."""
 
 import nibabel as nb
-from pymp2rage_redux.core import compute_UNI
+from mp2ragelib.core import compute_UNI
 
 FILE1 = '/path/to/INV1_re.nii.gz'
 FILE2 = '/path/to/INV1_im.nii.gz'

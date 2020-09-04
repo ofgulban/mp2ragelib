@@ -118,7 +118,7 @@ def Mz_0rf(mz0, t1, t, m0):
     return mz0 * exp(-t / t1) + m0 * (1 - exp(-t / t1))
 
 
-def mz_ss(eff, mz0, t1, t, n_gre, tr_gre, alpha):
+def Mz_ss(eff, mz0, t1, t, n_gre, tr_gre, alpha):
     """MP2RAGE signal.
 
     A full account of the signal resulting from the MP2RAGE sequence has to
@@ -132,22 +132,22 @@ def mz_ss(eff, mz0, t1, t, n_gre, tr_gre, alpha):
 
     """
     # Step 0: Inversion
-    s0 = mz_inv(eff, mz0)
+    s0 = Mz_inv(eff, mz0)
     # Step 1: Period with no pulses
-    s1 = mz_0rf(mz0, t1, t, s0)
+    s1 = Mz_0rf(mz0, t1, t, s0)
     # Step 2: First GRE block
-    s2 = mz_nrf(mz0, t1, n_gre, tr_gre, alpha, s1)
+    s2 = Mz_nrf(mz0, t1, n_gre, tr_gre, alpha, s1)
     # Step 3: Prediod with no pulses
-    s3 = mz_0rf(mz0, t1, t, s2)
+    s3 = Mz_0rf(mz0, t1, t, s2)
     # Step 4: Second GRE block
-    s4 = mz_nrf(mz0, t1, n_gre, tr_gre, alpha, s3)
+    s4 = Mz_nrf(mz0, t1, n_gre, tr_gre, alpha, s3)
     # Step 5: Final recovery with no pulses
-    s5 = mz_0rf(mz0, t1, t, s4)
+    s5 = Mz_0rf(mz0, t1, t, s4)
 
     return s5
 
 
-def mz_ss_solved(T1, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, FA_1, FA_2,
+def Mz_ss_solved(T1, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, FA_1, FA_2,
                  M0=1., eff=0.96):
     """Compute steadt state longitudinal magnetization.
 
@@ -224,21 +224,6 @@ def mz_ss_solved(T1, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, FA_1, FA_2,
 
     return term6 / term8
 
-# Denominator
-# MZsteadystate=1./(1+inversionefficiency * ( prod(cosalfaE1) )^(nZslices) .* prod(E_TD) );
-#
-# MZsteadystatenumerator=M0*(1-E_TD(1));
-# for k=1:(nimages)
-#     %term relative to the image aquisition;
-#     MZsteadystatenumerator=MZsteadystatenumerator*(cosalfaE1(k))^nZslices...
-#         +M0 .* (1-E_1) .* (1-(cosalfaE1(k))^nZslices)...
-#         ./ (1-(cosalfaE1(k)));
-#
-#     %term for the relaxation time after it;
-#     MZsteadystatenumerator = MZsteadystatenumerator .* E_TD(k+1) + M0 * (1 - E_TD(k+1));
-#
-# end;
-
 
 def signal_gre1(mz_ss, FA_1, NR_RF, TR_GRE, TI_1, T1, M0=1., eff=0.96):
     """Signal of the first inversion."""
@@ -274,45 +259,45 @@ def signal_gre2(mz_ss, FA_2, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, T1, M0=1.):
     return np.sin(FA_2) * (term1 / term2 - term3)
 
 
-def signal_gre(mz_ss, FA_1, FA_2, NR_RF, TR_GRE, TI_1, TI_2, T1, TR_MP2RAGE,
-               M0=1., eff=0.96):
-    """TEMP!!! Signal of the first inversion."""
-    # Handy definitions
-    T_GRE = NR_RF * TR_GRE  # Duration of one readout
-    TA = TI_1 - (T_GRE / 2.)  # First no pulse period
-    TB = TI_2 - (TA + T_GRE + (T_GRE / 2.))  # Second no pulse period
-    TC = TR_MP2RAGE - (TA + T_GRE + TB + T_GRE)  # Final no pulse period
-    E1 = np.exp(-TR_GRE / T1)
-    EA = np.exp(-TA / T1)
-    EB = np.exp(-TB / T1)
-    EC = np.exp(-TC / T1)
-    C1 = np.cos(FA_1) * E1
-    C2 = np.cos(FA_2) * E1
-
-    term1 = ((-eff * mz_ss) / M0) * EA + (1 - EA)
-    term2 = C1 ** (NR_RF / 2 - 1)
-    term3 = (1 - E1) * (1 - C1**(NR_RF / 2 - 1)) / (1 - C1)
-
-    temp = (term1 * term2 + term3)
-    signal1 = np.sin(FA_1) * temp
-
-    #
-    term4 = temp * C1**(NR_RF / 2 - 1)
-    term5 = M0 * (1 - E1) * (1 - C1**(NR_RF / 2 - 1)) / (1 - C1)
-    temp = term4 + term5
-
-    term6 = temp * EC + M0 * (1 - EC) * C1**(NR_RF / 2 - 1)
-    term7 = M0 * (1 - E1) * (1 - C2)**(NR_RF / 2 - 1) / (1 - C2)
-
-    temp = term6 + term7
-    signal2 = np.sin(FA_2) * temp
-
-# temp=temp * (cosalfaE1(m-1))^(nZ_aft) + ...
-#     M0.* (1 - E_1) .* (1 - (cosalfaE1(m-1))^(nZ_aft))...
-#     ./ (1-(cosalfaE1(m-1)));
+# def signal_gre(mz_ss, FA_1, FA_2, NR_RF, TR_GRE, TI_1, TI_2, T1, TR_MP2RAGE,
+#                M0=1., eff=0.96):
+#     """TEMP!!! Signal of the first inversion."""
+#     # Handy definitions
+#     T_GRE = NR_RF * TR_GRE  # Duration of one readout
+#     TA = TI_1 - (T_GRE / 2.)  # First no pulse period
+#     TB = TI_2 - (TA + T_GRE + (T_GRE / 2.))  # Second no pulse period
+#     TC = TR_MP2RAGE - (TA + T_GRE + TB + T_GRE)  # Final no pulse period
+#     E1 = np.exp(-TR_GRE / T1)
+#     EA = np.exp(-TA / T1)
+#     EB = np.exp(-TB / T1)
+#     EC = np.exp(-TC / T1)
+#     C1 = np.cos(FA_1) * E1
+#     C2 = np.cos(FA_2) * E1
 #
-# temp=(temp*E_TD(m) + M0 * ( 1-E_TD(m))).*(cosalfaE1(m))^(nZ_bef)+...
-#     M0.*(1-E_1).*(1-(cosalfaE1(m))^(nZ_bef))...
-#     ./(1-(cosalfaE1(m)));
-
-    return signal1, signal2
+#     term1 = ((-eff * mz_ss) / M0) * EA + (1 - EA)
+#     term2 = C1 ** (NR_RF / 2 - 1)
+#     term3 = (1 - E1) * (1 - C1**(NR_RF / 2 - 1)) / (1 - C1)
+#
+#     temp = (term1 * term2 + term3)
+#     signal1 = np.sin(FA_1) * temp
+#
+#     #
+#     term4 = temp * C1**(NR_RF / 2 - 1)
+#     term5 = M0 * (1 - E1) * (1 - C1**(NR_RF / 2 - 1)) / (1 - C1)
+#     temp = term4 + term5
+#
+#     term6 = temp * EC + M0 * (1 - EC) * C1**(NR_RF / 2 - 1)
+#     term7 = M0 * (1 - E1) * (1 - C2)**(NR_RF / 2 - 1) / (1 - C2)
+#
+#     temp = term6 + term7
+#     signal2 = np.sin(FA_2) * temp
+#
+# # temp=temp * (cosalfaE1(m-1))^(nZ_aft) + ...
+# #     M0.* (1 - E_1) .* (1 - (cosalfaE1(m-1))^(nZ_aft))...
+# #     ./ (1-(cosalfaE1(m-1)));
+# #
+# # temp=(temp*E_TD(m) + M0 * ( 1-E_TD(m))).*(cosalfaE1(m))^(nZ_bef)+...
+# #     M0.*(1-E_1).*(1-(cosalfaE1(m))^(nZ_bef))...
+# #     ./(1-(cosalfaE1(m)));
+#
+#     return signal1, signal2

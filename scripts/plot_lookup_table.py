@@ -3,8 +3,8 @@
 import numpy as np
 import nibabel as nb
 import matplotlib.pyplot as plt
-from pymp2rage_redux.core import mz_ss_solved, signal_gre1, signal_gre2
-from pymp2rage_redux.core import signal_gre
+from mp2ragelib.core import Mz_ss_solved, signal_gre1, signal_gre2
+from mp2ragelib.core import signal_gre
 
 # Range of T1 values
 NR_SAMPLES = 1000
