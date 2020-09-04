@@ -85,11 +85,10 @@ def Mz_nrf(mz0, t1, n_gre, tr_gre, alpha, m0):
         Longitudinal magnetization at the start of the RF free periods.
 
     """
-    from sympy import exp, cos
-    return (mz0 * (cos(alpha) * exp(-tr_gre / t1)) ** n_gre
-            + m0 * (1 - exp(-tr_gre / t1))
-            * (1 - (cos(alpha) * exp(-tr_gre / t1)) ** n_gre)
-            / (1 - cos(alpha) * exp(-tr_gre / t1))
+    return (mz0 * (np.cos(alpha) * np.exp(-tr_gre / t1)) ** n_gre
+            + m0 * (1 - np.exp(-tr_gre / t1))
+            * (1 - (np.cos(alpha) * np.exp(-tr_gre / t1)) ** n_gre)
+            / (1 - np.cos(alpha) * np.exp(-tr_gre / t1))
             )
 
 
@@ -114,8 +113,7 @@ def Mz_0rf(mz0, t1, t, m0):
         Longitudinal magnetization at the start of the RF free periods.
 
     """
-    from sympy import exp
-    return mz0 * exp(-t / t1) + m0 * (1 - exp(-t / t1))
+    return mz0 * np.exp(-t / t1) + m0 * (1 - np.exp(-t / t1))
 
 
 def Mz_ss(eff, mz0, t1, t, n_gre, tr_gre, alpha):
@@ -187,7 +185,7 @@ def Mz_ss_solved(T1, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, FA_1, FA_2,
     T_GRE = NR_RF * TR_GRE  # Duration of one readout
     TA = TI_1 - (T_GRE / 2.)  # First no pulse period
     TB = TI_2 - (TA + T_GRE + (T_GRE / 2.))  # Second no pulse period
-    TC = TR_MP2RAGE - (TA + T_GRE + TB + T_GRE)  # Final no pulse period
+    TC = TR_MP2RAGE - (TI_2 + (T_GRE / 2.))  # Final no pulse period
 
     # print("T_GRE={} TA={} TB={} TC={}".format(T_GRE, TA, TB, TC))
 
