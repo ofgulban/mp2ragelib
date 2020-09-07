@@ -1,72 +1,32 @@
 """Plot MP2RAGE signal using equationn A1.3 from Marques et al. (2010)."""
 
+import os
 import numpy as np
 import nibabel as nb
 import matplotlib.pyplot as plt
-from mp2ragelib.core import Mz_inv, Mz_0rf, Mz_nrf
+from mp2ragelib.core import compute_T1_lookup_table, map_UNI_to_T1
 
-# Parameters
+# User-defined parameters
+file_name = "/home/faruk/Data/test_mp2ragelib/sub-03_ses-T1_run-02_RL_UNI.nii.gz"
 eff = 1
 TR_MP2RAGE = 5.0
 TI_1 = 0.8
 TI_2 = 2.7
 FA_1 = np.deg2rad(4.)
 FA_2 = np.deg2rad(5.)
-NR_RF = 120.
+NR_RF = 216
 TR_GRE = 0.00291 * 2
 
-# Derived
-TA = TI_1 - (NR_RF * TR_GRE / 2)
-TB = TI_2 - (TI_1 + (NR_RF * TR_GRE / 2))
-TC = TR_MP2RAGE - (TI_1 + (NR_RF * TR_GRE / 2))
-
-# WM/GM/CSF=1.05/1.85/3.35 s
-T1s = np.linspace(0.5, 5.5, 101)
+# WM/GM/CSF=1.05/1.85/3.35 s  (at 7T)
 nr_timepoints = 1001
-time = np.linspace(0, TR_MP2RAGE, nr_timepoints)
-signal = np.zeros([T1s.size, nr_timepoints])
-M0 = 1
-for i, t1 in enumerate(T1s):
-    # Step 0: Inversion
-    signal[i, 0] = Mz_inv(eff=1, mz0=M0)
+T1s = np.linspace(0.5, 5.5, nr_timepoints)
 
-    # Step 1: Period with no pulses
-    signal[i, 1] = Mz_0rf(mz0=signal[i, 0], t1=t1, t=TA, m0=M0)
-
-    # Step 2: First GRE block
-    signal[i, 2] = Mz_nrf(mz0=signal[i, 1], t1=t1, n_gre=NR_RF, tr_gre=TR_GRE,
-                          alpha=FA_1, m0=M0)
-
-    # Step 3: Prediod with no pulses
-    signal[i, 3] = Mz_0rf(mz0=signal[i, 2], t1=t1, t=TB, m0=M0)
-
-    # Step 4: Second GRE block
-    signal[i, 4] = Mz_nrf(mz0=signal[i, 3], t1=t1, n_gre=NR_RF, tr_gre=TR_GRE,
-                          alpha=FA_2, m0=M0)
-
-    # Step 5: Final recovery with no pulses
-    signal[i, 5] = Mz_0rf(mz0=signal[i, 4], t1=t1, t=TC, m0=M0)
-
-# Compute uni
-signal_gre1 = signal[:, 2]
-signal_gre2 = signal[:, 4]
-signal_uni = signal_gre1 * signal_gre2 / (signal_gre1**2 + signal_gre2**2)
-
-# # Plot GRE1 vs GRE2
-# fig = plt.plot(signal[:, 2], signal[:, 4])
-# plt.xlabel("GRE1")
-# plt.ylabel("GRE2")
-
-# Plot UNI vs T1
-fig = plt.plot(signal_uni, T1s)
-plt.xlabel("UNI")
-plt.ylabel("T1")
-
-# NOTE(Faruk): Only take the bijective part
-idx_min = np.argmin(signal_uni)
-idx_max = np.argmax(signal_uni)
-arr_UNI = signal_uni[range(idx_min, idx_max, -1)]
-arr_T1 = T1s[range(idx_min, idx_max, -1)]
+# =============================================================================
+# Find UNI to T1 mapping using lookup table method
+arr_UNI, arr_T1 = compute_T1_lookup_table(
+    T1s=T1s, TR_MP2RAGE=TR_MP2RAGE, TR_GRE=TR_GRE, NR_RF=NR_RF,
+    TI_1=TI_1, TI_2=TI_2, FA_1=FA_1, FA_2=FA_2, M0=1., eff=0.96,
+    only_bijective_part=True)
 
 # Plot UNI vs T1
 fig = plt.plot(arr_UNI, arr_T1)
@@ -74,18 +34,21 @@ plt.xlabel("UNI")
 plt.ylabel("T1")
 
 # =============================================================================
-# # Load data
-# nii = nb.load("/home/faruk/Data/test_mp2ragelib/UNI_masked.nii.gz")
-# data = nii.get_fdata()
-#
-# # Scale range from uint12 to -0.5 to 0.5
-# data /= 4095
-# data -= 0.5
-#
-# temp = np.interp(data, xp=arr_UNI, fp=arr_T1)
-# temp *= 1000  # Seconds to milliseconds
-#
-# img = nb.Nifti1Image(temp, affine=nii.affine)
-# nb.save(img, "/home/faruk/Data/test_mp2ragelib/UNI_masked_T1_test.nii.gz")
-#
-# print("Finished")
+# Load data
+nii = nb.load(file_name)
+data = nii.get_fdata()
+
+# Scale range from uint12 to -0.5 to 0.5
+data /= 4095
+data -= 0.5
+
+temp = map_UNI_to_T1(img_UNI=data, arr_UNI=arr_UNI, arr_T1=arr_T1)
+temp *= 1000  # Seconds to milliseconds
+
+# Save as nifti
+img_out = nb.Nifti1Image(temp, affine=nii.affine)
+basename = nii.get_filename().split(os.extsep, 1)[0]
+out_name = "{}_T1.nii.gz".format(basename)
+nb.save(img_out, out_name)
+
+print("Finished")

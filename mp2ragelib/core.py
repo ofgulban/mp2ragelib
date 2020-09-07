@@ -23,6 +23,14 @@ def compute_UNI(inv1_re, inv1_im, inv2_re, inv2_im, scale=False):
     uni: np.ndarray, 3D
         Unified image that looks similar to T1-weighted images.
 
+    Reference
+    ---------
+    - Marques, J. P., Kober, T., Krueger, G., van der Zwaag, W.,
+    Van de Moortele, P.-F., Gruetter, R. (2010). MP2RAGE, a self bias-field
+    corrected sequence for improved segmentation and T1-mapping at high field.
+    NeuroImage, 49(2), 1271–1281.
+    <https://doi.org/10.1016/j.neuroimage.2009.10.002>
+
     """
     inv1 = inv1_re + inv1_im * 1j
     inv2 = inv2_re + inv2_im * 1j
@@ -40,33 +48,43 @@ def compute_UNI(inv1_re, inv1_im, inv2_re, inv2_im, scale=False):
     return uni
 
 
-# Appendix a)
-def Mz_inv(eff, mz0):
+def Mz_inv(mz0, eff=0.96):
     """Magnetization after adiabatic inversion pulse.
 
+    Parameters
+    ----------
+    mz0 : float
+        Longitudinal magnetization at time=0.
+    eff : float
+        Efficiency of the adiabatic inversion pulse. The default value of
+        '0.96' is used by Marques et al. (2010)
+
+    Returns
+    -------
+    signal : float
+        Longitudinal magnetization.
+
+    Notes
+    -----
     Marques et al. (2010), Appendix 1, Item A):
     'Longitudinal magnetization is inverted by means of an adiabatic pulse of
     a given efficiency.'
 
-    Parameters
-    ----------
-    eff : float
-        Efficiency of the adiabatic inversion pulse.
-    mz0 : float
-        Longitudinal magnetization at time=0.
+    Reference
+    ---------
+    - Marques, J. P., Kober, T., Krueger, G., van der Zwaag, W.,
+    Van de Moortele, P.-F., Gruetter, R. (2010). MP2RAGE, a self bias-field
+    corrected sequence for improved segmentation and T1-mapping at high field.
+    NeuroImage, 49(2), 1271–1281.
+    <https://doi.org/10.1016/j.neuroimage.2009.10.002>
 
     """
-    return -eff * mz0
+    signal = -eff * mz0
+    return signal
 
 
-# Appendix b)
 def Mz_nrf(mz0, t1, n_gre, tr_gre, alpha, m0):
     """Magnetization during the GRE block.
-
-    Marques et al. (2010), Appendix 1, Item B):
-    'During the GRE blocks of n RF pulses with constant flip angles (alpha),
-    separated by an interval TR, the longitudinal magnetization evolves in
-    the following way (Deichmann and Haase, 1992).'
 
     Parameters
     ----------
@@ -84,12 +102,33 @@ def Mz_nrf(mz0, t1, n_gre, tr_gre, alpha, m0):
     m0 : float
         Longitudinal magnetization at the start of the RF free periods.
 
+    Returns
+    -------
+    signal : float
+        Longitudinal magnetization.
+
+    Notes
+    -----
+    - Marques et al. (2010), Appendix 1, Item B):
+    'During the GRE blocks of n RF pulses with constant flip angles (alpha),
+    separated by an interval TR, the longitudinal magnetization evolves in
+    the following way (Deichmann and Haase, 1992).'
+
+    Reference
+    ---------
+    - Marques, J. P., Kober, T., Krueger, G., van der Zwaag, W.,
+    Van de Moortele, P.-F., Gruetter, R. (2010). MP2RAGE, a self bias-field
+    corrected sequence for improved segmentation and T1-mapping at high field.
+    NeuroImage, 49(2), 1271–1281.
+    <https://doi.org/10.1016/j.neuroimage.2009.10.002>
+
     """
-    return (mz0 * (np.cos(alpha) * np.exp(-tr_gre / t1)) ** n_gre
-            + m0 * (1 - np.exp(-tr_gre / t1))
-            * (1 - (np.cos(alpha) * np.exp(-tr_gre / t1)) ** n_gre)
-            / (1 - np.cos(alpha) * np.exp(-tr_gre / t1))
-            )
+    signal = (mz0 * (np.cos(alpha) * np.exp(-tr_gre / t1)) ** n_gre
+              + m0 * (1 - np.exp(-tr_gre / t1))
+              * (1 - (np.cos(alpha) * np.exp(-tr_gre / t1)) ** n_gre)
+              / (1 - np.cos(alpha) * np.exp(-tr_gre / t1))
+              )
+    return signal
 
 
 # Appendix c)
@@ -112,49 +151,36 @@ def Mz_0rf(mz0, t1, t, m0):
     m0 : float
         Longitudinal magnetization at the start of the RF free periods.
 
-    """
-    return mz0 * np.exp(-t / t1) + m0 * (1 - np.exp(-t / t1))
+    Returns
+    -------
+    signal : float
+        Longitudinal magnetization.
 
-
-def Mz_ss(eff, mz0, t1, t, n_gre, tr_gre, alpha):
-    """MP2RAGE signal.
-
-    A full account of the signal resulting from the MP2RAGE sequence has to
-    take into account the steady-state condition. This implies that the
-    longitudinal magnetization before successive inversions, mz,ss, has to be
-    the same. Between two successive inversions the mz,ss undergoes first an
-    inversion (a), followed by recovery for a period TA (c), a first GRE
-    block (b), a free recovery for a period TB (c), a second GRE block (b),
-    and a final recovery for a period TC (c) by the end of which it should be
-    back to its initial value
+    Reference
+    ---------
+    - Marques, J. P., Kober, T., Krueger, G., van der Zwaag, W.,
+    Van de Moortele, P.-F., Gruetter, R. (2010). MP2RAGE, a self bias-field
+    corrected sequence for improved segmentation and T1-mapping at high field.
+    NeuroImage, 49(2), 1271–1281.
+    <https://doi.org/10.1016/j.neuroimage.2009.10.002>
 
     """
-    # Step 0: Inversion
-    s0 = Mz_inv(eff, mz0)
-    # Step 1: Period with no pulses
-    s1 = Mz_0rf(mz0, t1, t, s0)
-    # Step 2: First GRE block
-    s2 = Mz_nrf(mz0, t1, n_gre, tr_gre, alpha, s1)
-    # Step 3: Prediod with no pulses
-    s3 = Mz_0rf(mz0, t1, t, s2)
-    # Step 4: Second GRE block
-    s4 = Mz_nrf(mz0, t1, n_gre, tr_gre, alpha, s3)
-    # Step 5: Final recovery with no pulses
-    s5 = Mz_0rf(mz0, t1, t, s4)
-
-    return s5
+    signal = mz0 * np.exp(-t / t1) + m0 * (1 - np.exp(-t / t1))
+    return signal
 
 
-def Mz_ss_solved(T1, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, FA_1, FA_2,
-                 M0=1., eff=0.96):
-    """Compute steadt state longitudinal magnetization.
+def compute_T1_lookup_table(T1s, TR_MP2RAGE, TR_GRE, NR_RF, TI_1, TI_2,
+                            FA_1, FA_2, M0=1., eff=0.96,
+                            only_bijective_part=True):
+    """Find T1 values from UNI image.
 
     Parameters
     ----------
+    T1s : numpy.ndarray, 1D, float
+        An array of T1 times in seconds. The range of T1 values in this array
+        will be used to generate the corresponding UNI values.
     M0 : float
         Longitudinal signal at time=0.
-    T1 : float
-        T1 time in seconds.
     NR_RF : int
         Number of radio frequency pulses in one GRE readout.
     TR_GRE : float
@@ -173,85 +199,100 @@ def Mz_ss_solved(T1, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, FA_1, FA_2,
     eff: float
         Inversion efficiency of the adiabatic pulse. Default is 0.96 as used in
         Marques et al. (2010), mentioned below Equation 3.
+    only_bijective_part: bool
+        Only take the bijective part. If 'False', return all values.
+
+    Returns
+    -------
+    arr_UNI: np.ndarray, 1D, float
+        Array of UNI values (MP2RAGE signal)
+    arr_T1: np.ndarray, 1D, float
+        Array of T1 values that correspond to the UNI values.
 
     Notes
     -----
-    In order to fully understand what is happening in this function, study
-    Marques et al (2010), Appendix 1, Equation A1.4 and see Figure 1 for the
-    parameter definitions.
+    - Marques et al. (2010), Appendix 1, Item C):
+    'A full account of the signal resulting from the MP2RAGE sequence has to
+    take into account the steady-state condition. This implies that the
+    longitudinal magnetization before successive inversions, mz,ss, has to be
+    the same. Between two successive inversions the mz,ss undergoes first an
+    inversion (a), followed by recovery for a period TA (c), a first GRE
+    block (b), a free recovery for a period TB (c), a second GRE block (b),
+    and a final recovery for a period TC (c) by the end of which it should be
+    back to its initial value.'
+
+    Reference
+    ---------
+    - Marques, J. P., Kober, T., Krueger, G., van der Zwaag, W.,
+    Van de Moortele, P.-F., Gruetter, R. (2010). MP2RAGE, a self bias-field
+    corrected sequence for improved segmentation and T1-mapping at high field.
+    NeuroImage, 49(2), 1271–1281.
+    <https://doi.org/10.1016/j.neuroimage.2009.10.002>
 
     """
-    # See Marques et al. (2010) Figure 1 where TA, TB, TC are defined.
-    T_GRE = NR_RF * TR_GRE  # Duration of one readout
-    TA = TI_1 - (T_GRE / 2.)  # First no pulse period
-    TB = TI_2 - (TA + T_GRE + (T_GRE / 2.))  # Second no pulse period
-    TC = TR_MP2RAGE - (TI_2 + (T_GRE / 2.))  # Final no pulse period
+    # Derived time parameters
+    TA = TI_1 - (NR_RF * TR_GRE / 2)
+    TB = TI_2 - (TI_1 + (NR_RF * TR_GRE / 2))
+    TC = TR_MP2RAGE - (TI_1 + (NR_RF * TR_GRE / 2))
 
-    # print("T_GRE={} TA={} TB={} TC={}".format(T_GRE, TA, TB, TC))
+    # NOTE(Faruk): Go through all stages for completeness.
+    signal = np.zeros(T1s.shape + (6,))
+    for i, t1 in enumerate(T1s):
+        # Step 0: Inversion
+        signal[i, 0] = Mz_inv(eff=1, mz0=M0)
 
-    # Following handy definitions below Equation A1.4 in Marques et al. (2010)
-    E1 = np.exp(-TR_GRE / T1)
-    EA = np.exp(-TA / T1)
-    EB = np.exp(-TB / T1)
-    EC = np.exp(-TC / T1)
+        # Step 1: Period with no pulses
+        signal[i, 1] = Mz_0rf(mz0=signal[i, 0], t1=t1, t=TA, m0=M0)
 
-    # print("E1={} EA={} EB={} EC={}".format(E1, EA, EB, EC))
+        # Step 2: First GRE block
+        signal[i, 2] = Mz_nrf(mz0=signal[i, 1], t1=t1, n_gre=NR_RF,
+                              tr_gre=TR_GRE, alpha=FA_1, m0=M0)
 
-    # Pre-compute cosine terms
-    C1 = np.cos(FA_1) * E1
-    C2 = np.cos(FA_2) * E1
+        # Step 3: Prediod with no pulses
+        signal[i, 3] = Mz_0rf(mz0=signal[i, 2], t1=t1, t=TB, m0=M0)
 
-    # print("C1={} C2={}".format(C1, C2))
+        # Step 4: Second GRE block
+        signal[i, 4] = Mz_nrf(mz0=signal[i, 3], t1=t1, n_gre=NR_RF,
+                              tr_gre=TR_GRE, alpha=FA_2, m0=M0)
 
-    # Numerator part
-    term1 = (1 - EA) * C1**NR_RF
-    term2 = (1 - E1) * (1 - C1**NR_RF) / (1 - C1)
-    term3 = (term1 + term2) * EB + (1 - EB)
-    term4 = term3 * C2**NR_RF
-    term5 = (1 - E1) * (1 - C2**NR_RF) / (1 - C2)
-    term6 = M0 * (term4 + term5) * EC + (1 - EC)
+        # Step 5: Final recovery with no pulses
+        signal[i, 5] = Mz_0rf(mz0=signal[i, 4], t1=t1, t=TC, m0=M0)
 
-    # print("term1={} term2={} term3={}".format(term1, term2, term3))
-    # print("term4={} term5={} term6={}".format(term4, term5, term6))
+    # Compute uni
+    signal_gre1 = signal[:, 2]
+    signal_gre2 = signal[:, 4]
+    signal_uni = signal_gre1 * signal_gre2 / (signal_gre1**2 + signal_gre2**2)
 
-    # Denominator part
-    term7 = (np.cos(FA_1) * np.cos(FA_2))**NR_RF
-    term8 = 1 + eff * term7 * np.exp(-TR_MP2RAGE / T1)
+    if only_bijective_part:
+        idx_min = np.argmin(signal_uni)
+        idx_max = np.argmax(signal_uni)
+        arr_UNI = signal_uni[range(idx_min, idx_max, -1)]
+        arr_T1 = T1s[range(idx_min, idx_max, -1)]
+    else:
+        arr_UNI = signal_uni
+        arr_T1 = T1s
 
-    # print("term7={} term8={}".format(term7, term8))
-
-    return term6 / term8
-
-
-def signal_gre1(mz_ss, FA_1, NR_RF, TR_GRE, TI_1, T1, M0=1., eff=0.96):
-    """Signal of the first inversion."""
-    # Handy definitions
-    T_GRE = NR_RF * TR_GRE  # Duration of one readout
-    TA = TI_1 - (T_GRE / 2.)  # First no pulse period
-    E1 = np.exp(-TR_GRE / T1)
-    EA = np.exp(-TA / T1)
-    C1 = np.cos(FA_1) * E1
-
-    term1 = ((-eff * mz_ss) / M0) * EA + (1 - EA)
-    term2 = C1 ** (NR_RF / 2 - 1)
-    term3 = (1 - E1) * (1 - C1**(NR_RF / 2 - 1)) / (1 - C1)
-
-    return np.sin(FA_1) * (term1 * term2 / term3)
+    return arr_UNI, arr_T1
 
 
-def signal_gre2(mz_ss, FA_2, NR_RF, TR_GRE, TR_MP2RAGE, TI_1, TI_2, T1, M0=1.):
-    """Signal of the second inversion."""
-    # Handy definitions
-    T_GRE = NR_RF * TR_GRE  # Duration of one readout
-    TA = TI_1 - (T_GRE / 2.)  # First no pulse period
-    TB = TI_2 - (TA + T_GRE + (T_GRE / 2.))  # Second no pulse period
-    TC = TR_MP2RAGE - (TA + T_GRE + TB + T_GRE)  # Final no pulse period
-    E1 = np.exp(-TR_GRE / T1)
-    EC = np.exp(-TC / T1)
-    C2 = np.cos(FA_2) * E1
+def map_UNI_to_T1(img_UNI, arr_UNI, arr_T1):
+    """Map from UNI values to T1 values.
 
-    term1 = (mz_ss / M0) - (1 - EC)
-    term2 = EC * C2**(NR_RF / 2.)
-    term3 = (1 - E1) * (C2**(-NR_RF / 2.) - 1) / (1 - C2)
+    Parameters
+    ----------
+    img_UNI : numpy.ndarray, float
+        Expects an array of measured UNI values. The value range should be in
+        between -0.5 to 0.5.
+    arr_UNI : np.ndarray, 1D, float
+        Array of UNI values (MP2RAGE signal)
+    arr_T1 : np.ndarray, 1D, float
+        Array of T1 values that correspond to the UNI values.
 
-    return np.sin(FA_2) * (term1 / term2 - term3)
+    Returns
+    -------
+    img_T1 : numpy.ndarray, float
+        Array of T1 values (in seconds) generated from the measured UNI values.
+
+    """
+    img_T1 = np.interp(img_UNI, xp=arr_UNI, fp=arr_T1)
+    return img_T1
