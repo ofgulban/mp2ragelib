@@ -1,4 +1,4 @@
-"""Plot MP2RAGE signal using equationn A1.3 from Marques et al. (2010)."""
+"""Map UNI values to T1 values."""
 
 import os
 import numpy as np
