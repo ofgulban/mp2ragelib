@@ -1,4 +1,4 @@
-"""Plot MP2RAGE signal using equationn A1.3 from Marques et al. (2010)."""
+"""Estimate M0 image from UNI and INV2 images."""
 
 import numpy as np
 import nibabel as nb
